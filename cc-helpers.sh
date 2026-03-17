@@ -2,24 +2,20 @@
 # cc-helpers.sh — tmux session manager for Claude Code
 # Source this from your ~/.bashrc:  source ~/claude-code-tmux/cc-helpers.sh
 
-# ── Project paths (edit these per machine) ─────────────────────────────────
-_CC_HA="$HOME/pezbox/infra/homeAssistant"
-_CC_HW="$HOME/pezbox/hiveworth"
-_CC_RS="$HOME/pezbox/redfin-scraper"
-_CC_DEFAULT="$HOME/pezbox"
+# ── Project config ─────────────────────────────────────────────────────────
+# Load projects from projects.conf (gitignored, private to each machine).
+# See projects.conf.example for format.
+_CC_HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$_CC_HELPERS_DIR/projects.conf" ]; then
+    source "$_CC_HELPERS_DIR/projects.conf"
+else
+    echo "cc-helpers: No projects.conf found. Copy projects.conf.example to projects.conf and edit it." >&2
+    _CC_PROJECTS=()
+    _CC_DEFAULT="$HOME"
+fi
 
-# ── Project registry ───────────────────────────────────────────────────────
-# Format: shortname|label|path variable|session prefix
-# Add/remove projects by editing this array.
-_CC_PROJECTS=(
-    "ha|Home Assistant|_CC_HA|cc-ha"
-    "hw|Hiveworth|_CC_HW|cc-hw"
-    "rs|Redfin Scraper|_CC_RS|cc-rs"
-    "pb|Pezbox|_CC_DEFAULT|cc-pezbox"
-)
-
-# ── Claude flags ───────────────────────────────────────────────────────────
-_CC_FLAGS="--dangerously-skip-permissions"
+# ── Claude flags (set _CC_FLAGS in projects.conf to override) ─────────────
+_CC_FLAGS="${_CC_FLAGS:-}"
 
 # ── Internal helpers ───────────────────────────────────────────────────────
 
@@ -27,9 +23,9 @@ _CC_FLAGS="--dangerously-skip-permissions"
 _cc_dir() {
     local key="$1"
     for entry in "${_CC_PROJECTS[@]}"; do
-        IFS='|' read -r shortname label varname prefix <<< "$entry"
+        IFS='|' read -r shortname label dir prefix <<< "$entry"
         if [ "$key" = "$shortname" ]; then
-            echo "${!varname}"
+            echo "$dir"
             return
         fi
     done
@@ -40,13 +36,13 @@ _cc_dir() {
 _cc_prefix() {
     local key="$1"
     for entry in "${_CC_PROJECTS[@]}"; do
-        IFS='|' read -r shortname label varname prefix <<< "$entry"
+        IFS='|' read -r shortname label dir prefix <<< "$entry"
         if [ "$key" = "$shortname" ]; then
             echo "$prefix"
             return
         fi
     done
-    echo "cc-pezbox"
+    echo "cc-default"
 }
 
 # Create a new tmux session, send claude into it, attach
@@ -74,7 +70,7 @@ _cc_pick_project_and_resume() {
     echo "Resume a Claude conversation in which project?" >&2
     local i=1
     for entry in "${_CC_PROJECTS[@]}"; do
-        IFS='|' read -r shortname label varname prefix <<< "$entry"
+        IFS='|' read -r shortname label dir prefix <<< "$entry"
         echo "  $i) $shortname - $label" >&2
         i=$((i+1))
     done
@@ -88,8 +84,8 @@ _cc_pick_project_and_resume() {
 
     if [ "$choice" -ge 1 ] 2>/dev/null && [ "$choice" -le "$total" ] 2>/dev/null; then
         local entry="${_CC_PROJECTS[$((choice-1))]}"
-        IFS='|' read -r shortname label varname prefix <<< "$entry"
-        work_dir="${!varname}"
+        IFS='|' read -r shortname label dir prefix <<< "$entry"
+        work_dir="$dir"
     elif [ "$choice" = "$((total+1))" ]; then
         work_dir="$PWD"
         prefix="cc-$(basename "$PWD")"
@@ -109,7 +105,7 @@ _cc_switch_project_in_session() {
     echo "Switch to project:" >&2
     local i=1
     for entry in "${_CC_PROJECTS[@]}"; do
-        IFS='|' read -r shortname label varname prefix <<< "$entry"
+        IFS='|' read -r shortname label dir prefix <<< "$entry"
         echo "  $i) $shortname - $label" >&2
         i=$((i+1))
     done
@@ -123,8 +119,8 @@ _cc_switch_project_in_session() {
 
     if [ "$choice" -ge 1 ] 2>/dev/null && [ "$choice" -le "$total" ] 2>/dev/null; then
         local entry="${_CC_PROJECTS[$((choice-1))]}"
-        IFS='|' read -r shortname label varname prefix <<< "$entry"
-        work_dir="${!varname}"
+        IFS='|' read -r shortname label dir prefix <<< "$entry"
+        work_dir="$dir"
     elif [ "$choice" = "$((total+1))" ]; then
         work_dir="$PWD"
     else
@@ -134,7 +130,7 @@ _cc_switch_project_in_session() {
 
     echo "Switching to $work_dir..."
     cd "$work_dir"
-    claude $_CC_FLAGS --continue
+    claude $_CC_FLAGS --resume
 }
 
 # ── Public commands ────────────────────────────────────────────────────────
@@ -302,10 +298,10 @@ ccr() {
     if [ -z "$sessions" ]; then
         # No sessions exist - start a new one in current dir or default
         local work_dir="${PWD}"
-        if [[ ! "$PWD" =~ pezbox ]]; then
+        if [ "$PWD" != "$_CC_DEFAULT" ]; then
             work_dir="$_CC_DEFAULT"
         fi
-        local session_name="cc-pezbox-$(date +%m%d-%I%M%p | tr '[:upper:]' '[:lower:]')"
+        local session_name="cc-default-$(date +%m%d-%I%M%p | tr '[:upper:]' '[:lower:]')"
         echo "No tmux sessions found. Starting new tmux session..."
         _cc_new_session "$session_name" "$work_dir" "$cmd"
     elif [ "$(echo "$sessions" | wc -l)" -eq 1 ]; then

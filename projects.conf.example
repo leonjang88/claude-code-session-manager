@@ -1,0 +1,19 @@
+# projects.conf — define your project shortcuts here
+# Copy this to projects.conf and edit to match your machine.
+# This file is gitignored so your project names stay private.
+#
+# Format: shortname|Label|path|session-prefix
+# The default project (used by bare `cc` with no args) is the last entry.
+
+# Flags passed to every `claude` invocation (optional)
+# Uncomment to skip the permission prompt on every tool call:
+# _CC_FLAGS="--dangerously-skip-permissions"
+
+_CC_PROJECTS=(
+    "app|My App|$HOME/projects/my-app|cc-app"
+    "api|API Server|$HOME/projects/api|cc-api"
+    "home|Home|$HOME/projects|cc-home"
+)
+
+# Default directory when no project is specified
+_CC_DEFAULT="$HOME/projects"

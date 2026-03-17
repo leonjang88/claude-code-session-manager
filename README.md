@@ -1,4 +1,4 @@
-# claude-code-tmux
+# claude-code-session-manager
 
 Tmux session manager for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Manages multiple Claude conversations across project directories using named tmux sessions.
 
@@ -6,23 +6,32 @@ Tmux session manager for [Claude Code](https://docs.anthropic.com/en/docs/claude
 
 1. Clone this repo:
    ```bash
-   git clone https://github.com/ljang0/claude-code-tmux.git ~/claude-code-tmux
+   git clone https://github.com/ljang0/claude-code-session-manager.git ~/claude-code-session-manager
    ```
 
-2. Edit project paths at the top of `cc-helpers.sh` to match your machine:
+2. Create your project config (this file is gitignored — your project names stay private):
    ```bash
-   _CC_HA="$HOME/pezbox/infra/homeAssistant"
-   _CC_HW="$HOME/pezbox/hiveworth"
-   _CC_RS="$HOME/pezbox/redfin-scraper"
-   _CC_DEFAULT="$HOME/pezbox"
+   cp ~/claude-code-session-manager/projects.conf.example ~/claude-code-session-manager/projects.conf
    ```
 
-3. Add to your `~/.bashrc` (or `~/.zshrc`):
+3. Edit `projects.conf` to match your machine:
    ```bash
-   source ~/claude-code-tmux/cc-helpers.sh
+   _CC_PROJECTS=(
+       "app|My App|$HOME/projects/my-app|cc-app"
+       "api|API Server|$HOME/projects/api|cc-api"
+       "home|Home|$HOME/projects|cc-home"
+   )
+
+   _CC_DEFAULT="$HOME/projects"
+   ```
+   Format: `shortname|Label|path|session-prefix`
+
+4. Add to your `~/.bashrc` (or `~/.zshrc`):
+   ```bash
+   source ~/claude-code-session-manager/cc-helpers.sh
    ```
 
-4. Reload your shell:
+5. Reload your shell:
    ```bash
    source ~/.bashrc
    ```
@@ -32,42 +41,49 @@ Tmux session manager for [Claude Code](https://docs.anthropic.com/en/docs/claude
 | Command | What it does |
 |---------|-------------|
 | `cc` | New Claude session in default project |
-| `cc ha` | New Claude session in Home Assistant project |
-| `cc hw` | New Claude session in Hiveworth project |
-| `ccr` | Resume — pick an existing tmux session or start a new one |
+| `cc app` | New Claude session in "app" project (uses your shortnames from projects.conf) |
+| `ccr` | Resume — pick an existing tmux session or start a new one with a Claude conversation picker |
 | `ccs` | Switch Claude conversations within current tmux session |
 | `cc clear` | Interactive picker to kill tmux sessions |
 | `cc clear all` | Kill all `cc-*` tmux sessions |
-| `cc clear ha` | Kill all Home Assistant sessions |
+| `cc clear app` | Kill all sessions for a specific project |
+| `/ccrename` | (Inside Claude) Auto-rename tmux session based on current work |
 
 ## How it works
 
-- **`cc [project]`** creates a new tmux session named like `cc-ha-0317-0230pm`, cds into the project directory, and launches `claude`
+- **`cc [project]`** creates a new tmux session named like `cc-app-0317-0230pm`, cds into the project directory, and launches `claude`
 - **`ccr`** lists all `cc-*` tmux sessions and lets you attach to one, or create a new tmux session and pick a Claude conversation to resume via `--resume`
 - **`ccs`** (inside tmux) brings up Claude's conversation picker directly
 
 ## Detaching
 
-To leave a session without killing it: **`Ctrl+b` then `d`** (tmux detach). The tmux session and Claude keep running in the background.
+To leave a session running in the background: **`Ctrl+b` then `d`** (tmux detach). Both the tmux session and Claude keep running. Use `ccr` to come back later.
 
 ## Adding projects
 
-Edit the `_CC_PROJECTS` array in `cc-helpers.sh`:
+Edit `projects.conf` and add entries to the `_CC_PROJECTS` array:
 
 ```bash
 _CC_PROJECTS=(
-    "ha|Home Assistant|_CC_HA|cc-ha"
-    "hw|Hiveworth|_CC_HW|cc-hw"
-    "rs|Redfin Scraper|_CC_RS|cc-rs"
-    "pb|Pezbox|_CC_DEFAULT|cc-pezbox"
-    "myapp|My App|_CC_MYAPP|cc-myapp"   # add new project
+    "app|My App|$HOME/projects/my-app|cc-app"
+    "api|API Server|$HOME/projects/api|cc-api"
+    "new|New Project|$HOME/projects/new-thing|cc-new"
 )
 ```
 
-Then add the path variable above:
+Then reload: `source ~/.bashrc`
+
+## Bonus: `/ccrename` skill
+
+The repo includes a Claude Code skill that auto-renames your tmux session based on what you've been working on.
+
+To install it, symlink the skill into your Claude config:
+
 ```bash
-_CC_MYAPP="$HOME/projects/myapp"
+ln -s ~/claude-code-session-manager/skills/ccrename ~/.claude/skills/ccrename
 ```
+
+Then inside a Claude session, run `/ccrename` and it'll rename the tmux session with a short description like `cc-app-0317-0230pm-fix-auth-flow`.
 
 ## Requirements
 
