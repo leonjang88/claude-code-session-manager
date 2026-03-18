@@ -21,7 +21,7 @@ _CC_FLAGS="${_CC_FLAGS:-}"
 
 # Resolve context name to directory
 _cc_dir() {
-    local key="$1"
+    local key="${1:-$_CC_DEFAULT_PROJECT}"
     for entry in "${_CC_PROJECTS[@]}"; do
         IFS='|' read -r shortname label dir prefix <<< "$entry"
         if [ "$key" = "$shortname" ]; then
@@ -34,7 +34,7 @@ _cc_dir() {
 
 # Resolve context name to session prefix
 _cc_prefix() {
-    local key="$1"
+    local key="${1:-$_CC_DEFAULT_PROJECT}"
     for entry in "${_CC_PROJECTS[@]}"; do
         IFS='|' read -r shortname label dir prefix <<< "$entry"
         if [ "$key" = "$shortname" ]; then
