@@ -208,6 +208,22 @@ cc() {
         return
     fi
 
+    # cc discord — Claude Code with Discord channel connected
+    if [ "$1" = "discord" ]; then
+        local work_dir="$_CC_DEFAULT"
+        local prefix="cc-discord"
+        local discord_flags=$(echo "$_CC_FLAGS" | sed 's/--model [^ ]*//')
+        local cmd="claude --channels plugin:discord@claude-plugins-official $discord_flags --model 'claude-opus-4-6[1m]'"
+
+        if [ -n "$TMUX" ]; then
+            cd "$work_dir" && eval "$cmd"
+        else
+            local session_name="${prefix}-$(date +%m%d-%I%M%p | tr '[:upper:]' '[:lower:]')"
+            _cc_new_session "$session_name" "$work_dir" "$cmd"
+        fi
+        return
+    fi
+
     local ctx="$1"
     local work_dir
     work_dir=$(_cc_dir "$ctx")
